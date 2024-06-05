@@ -13,7 +13,7 @@ public class GraphicsPanel extends JPanel implements KeyListener, MouseListener 
     private boolean[] pressedKeys;
 
     public GraphicsPanel() {
-        player = new Player("src/marioleft.png", "src/marioright.png");
+        player = new Player("src/Sprites/tile024.png", "src/Sprites/tile016.png", "src/Sprites/tile008.png", "src/Sprites/tile000.png");
         pressedKeys = new boolean[128]; // 128 keys on keyboard, max keycode is 127
         addKeyListener(this);
         addMouseListener(this);
@@ -51,11 +51,13 @@ public class GraphicsPanel extends JPanel implements KeyListener, MouseListener 
         // player moves up (W)
         if (pressedKeys[87]) {
             player.moveUp();
+            player.faceUp();
         }
 
         // player moves down (S)
         if (pressedKeys[83]) {
             player.moveDown();
+            player.faceDown();
         }
     }
 
