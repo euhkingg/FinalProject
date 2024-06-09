@@ -8,13 +8,14 @@ public class Animation implements ActionListener {
     private ArrayList<BufferedImage> frames;
     private Timer timer;
     private int currentFrame;
-    private int[] delay;
+    private int[] delays;
+    private int delayIndex = 0;
 
-    public Animation(ArrayList<BufferedImage> frames, int[] delays) {
-        delay = delays;
+    public Animation(ArrayList<BufferedImage> frames, int[] delay) {
+        delays = delay;
         this.frames = frames;
         currentFrame = 0;
-        timer = new Timer(delays[0], this);
+        timer = new Timer(delays[delayIndex], this);
         timer.start();
     }
 
@@ -36,7 +37,7 @@ public class Animation implements ActionListener {
             //It also uses modulus to reset the frame to the beginning after the last frame
             //In other words, this allows our animation to loop
             currentFrame = (currentFrame + 1) % frames.size();
-            timer.setDelay(delay[currentFrame]);
+            timer.setDelay(delays[currentFrame]);
         }
     }
 }
