@@ -1,89 +1,130 @@
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
+import java.awt.Color;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 
-public class GraphicsPanel extends JPanel implements KeyListener, MouseListener {
-    private BufferedImage background;
-    private Player player;
-    private boolean[] pressedKeys;
-
+public class GraphicsPanel extends JPanel implements MouseListener, MouseMotionListener {
+    HashMap<Integer, Color> turnChecker= new HashMap<Integer, Color>();
+    boolean gameOver = false, invalidMove, player1Won = false, player2Won = false;
+    private int player = 1, selected = 0;
+    int[] start = new int[2], end = new int[2];
+    Player p1 = new Player(), p2 = new Player();
+    Board b;
     public GraphicsPanel() {
-        player = new Player("src/marioleft.png", "src/marioright.png");
-        pressedKeys = new boolean[128]; // 128 keys on keyboard, max keycode is 127
-        addKeyListener(this);
         addMouseListener(this);
-        setFocusable(true); // this line of code + one below makes this panel active for keylistener events
-        requestFocusInWindow(); // see comment above
+        addMouseMotionListener(this);
+        b = new Board();
     }
-
 
     @Override
     public void paintComponent(Graphics g) {
         super.paintComponent(g);  // just do this
-        g.drawImage(background, 0, 0, null);  // the order that things get "painted" matter; we put background down first
-        g.drawImage(player.getPlayerImage(), player.getxCoord(), player.getyCoord(), null);
-
-        // this loop does two things:  it draws each Coin that gets placed with mouse clicks,
-        // and it also checks if the player has "intersected" (collided with) the Coin, and if so,
-        // the score goes up and the Coin is removed from the arraylist
-
-        // draw score
-        g.setFont(new Font("Courier New", Font.BOLD, 24));
-        g.drawString("Score: " + player.getScore(), 20, 40);
-
-        // player moves left (A)
-        if (pressedKeys[65]) {
-            player.faceLeft();
-            player.moveLeft();
+        g.setColor(Color.white);
+        g.setFont(new Font("Times New Roman", Font.BOLD, 50));
+        g.drawString("Chess", 900, 100);
+        for (Tile[] tiles : b.getBoard()) {
+            for (int x = 0; x < b.getBoard()[0].length; x++) {
+                Tile t = tiles[x];
+                g.drawImage(t.getTileImage(), 50 + (t.getX() * 96), 70 + (t.getY() * 72), null);
+                g.drawImage(b.getPieceImage(t.getX(), t.getY()), 56+ (t.getX() * 96), 18 + (t.getY() * 72), null);
+            }
+            b.getBoard()[0][0].changeIsWhite();
         }
-
-        // player moves right (D)
-        if (pressedKeys[68]) {
-            player.faceRight();
-            player.moveRight();
+        for (int i = 0; i < 8; i++) {
+            g.drawImage(b.getBoard()[0][0].getEnd(), 44 + (i * 97), 648, null);
         }
-
-        // player moves up (W)
-        if (pressedKeys[87]) {
-            player.moveUp();
-        }
-
-        // player moves down (S)
-        if (pressedKeys[83]) {
-            player.moveDown();
-        }
-    }
-
-    // ----- KeyListener interface methods -----
-    public void keyTyped(KeyEvent e) { } // unimplemented
-
-    public void keyPressed(KeyEvent e) {
-        // see this for all keycodes: https://stackoverflow.com/questions/15313469/java-keyboard-keycodes-list
-        // A = 65, D = 68, S = 83, W = 87, left = 37, up = 38, right = 39, down = 40, space = 32, enter = 10
-        int key = e.getKeyCode();
-        pressedKeys[key] = true;
-    }
-
-    public void keyReleased(KeyEvent e) {
-        int key = e.getKeyCode();
-        pressedKeys[key] = false;
+        repaint();
     }
 
     // ----- MouseListener interface methods -----
-    public void mouseClicked(MouseEvent e) { }  // unimplemented; if you move your mouse while clicking,
-    // this method isn't called, so mouseReleased is best
-
-    public void mousePressed(MouseEvent e) { } // unimplemented
-
-    public void mouseReleased(MouseEvent e) {
+    public void mouseMoved(MouseEvent e) {
+        if(!gameOver) {
+            for (Tile[] ts : b.getBoard()) {
+                for (Tile t : ts) {
+                    t.hovered = (e.getX() > t.getXPixel() && e.getX() < t.getXPixel() + t.getLength()) && (e.getY() > t.getYPixel() + t.getWidth() && e.getY() < t.getYPixel() + (t.getWidth() * 2));
+                }
+            }
+        }
     }
+
+    public void mousePressed(MouseEvent e) {
+        if (!gameOver) {
+            for (Tile[] y : b.getBoard()) {
+                for (Tile t : y) {
+                    if ((e.getX() > t.getXPixel() && e.getX() < t.getXPixel() + t.getLength()) && (e.getY() > t.getYPixel() + t.getWidth() && e.getY() < t.getYPixel() + (t.getWidth() * 2))) {
+                        t.setChosen(!t.getChosen());
+                        if (t.chosen) {//If you chose a spot then add 1 to the selected count
+                            if (selected < 2) {//If the total amount selected is less than 2 then add 1 to select
+                                if (selected == 0) {
+                                    start = new int[]{t.getX(), t.getY()};
+                                } else {
+                                    end = new int[]{t.getX(), t.getY()};
+                                }
+                                selected++;
+                            } else {//If you chose more than 2 it will turn off what you just picked
+                                t.chosen = false;
+                            }
+                        } else {// When you chose you pick the same spot you turn off the spot and make the amount selected to 1 less
+                            selected--;
+                        }
+
+                        if (selected == 2) {
+                            //System.out.println("Start: " + start[0] + ", " + start[1] + "\nEnd: " + end[0] + ", " + end[1]);
+                            if (CheckMove.isValidMove(start, end, player)) { //CheckMove.isValidMove(start, end, player)
+                                invalidMove = false;
+                                //Updates the current tile to show that it was moved\\
+                                Board.get(start).moved();
+
+                                //Adds The Piece Captured to the captured piece list\\
+                                if (Board.get(end).getPiece() != Piece.none) {
+                                    if (player % 2 == 1) {
+                                        p2.capturedPieces.add(Board.get(end).getPiece());
+                                        if (Board.get(end).getPiece() == Piece.king) {
+                                            player1Won = true;
+                                            gameOver = true;
+                                        }
+                                        p1.capturedPieces.add(Board.get(end).getPiece());
+                                    } else {
+                                        p2.capturedPieces.add(Board.get(end).getPiece());
+                                        if (Board.get(end).getPiece() == Piece.king) {
+                                            player2Won = true;
+                                            gameOver = true;
+                                        }
+                                    }
+                                }
+
+                                Board.get(end).change(Board.get(start));
+                                Board.get(start).reset();
+                                player++;
+                                if (player == 3) {
+                                    player = 1;
+                                }
+                            } else {
+                                invalidMove = true;
+                            }
+                            Board.get(end).chosen = false;
+                            Board.get(start).chosen = false;
+                            selected = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public void mouseReleased(MouseEvent e) {}
 
     public void mouseEntered(MouseEvent e) { } // unimplemented
 
     public void mouseExited(MouseEvent e) { } // unimplemented
+
+    public void mouseDragged(MouseEvent e) {}
+
+    public void mouseClicked(MouseEvent e) { }
 }
